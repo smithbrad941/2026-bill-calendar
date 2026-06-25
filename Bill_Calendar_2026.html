@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>2026 Bill Calendar (Interactive)</title>
+    <meta charset="UTF-8">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f5f5f5;
+        }
+
+        /* ---- TAB BAR ---- */
+        .tab-bar {
+            display: flex;
+            justify-content: space-between;
+            background: #2e6cd1;
+            padding: 10px 0;
+        }
+
+        .tab-button {
+            flex: 1;
+            text-align: center;
+            padding: 12px 0;
+            cursor: pointer;
+            color: white;
+            font-weight: bold;
+            border-right: 1px solid #1f4ea1;
+            user-select: none;
+        }
+
+        .tab-button:last-child {
+            border-right: none;
+        }
+
+        .tab-button.active {
+            background: #1d4da0;
+            box-shadow: inset 0 -4px 0 0 #ffcc00;
+        }
+
+        /* ---- MONTH CONTAINERS ---- */
+        .month-container {
+            display: none;
+            padding: 20px;
+        }
+
+        .month-container.active {
+            display: block;
+        }
+
+        /* ---- CALENDAR GRID ---- */
+        .calendar {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            background: white;
+        }
+
+        .calendar th {
+            background: #ddd;
+            padding: 8px;
+            border: 1px solid #999;
+        }
+
+        .calendar td {
+            height: 110px;
+            vertical-align: top;
+            border: 1px solid #ccc;
+            padding: 4px;
+            background: #fff;
+        }
+
+        .day-number {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        /* ---- BILL ITEMS ---- */
+        .bill-item {
+            background: #eef;
+            margin: 2px 0;
+            padding: 3px;
+            border-left: 3px solid #3366cc;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        /* ---- WEEKLY TOTAL CELL ---- */
+        .weekly-total {
+            background: #c9f7cc;
+            font-weight: bold;
+            border: 2px solid #7dcf7f;
+        }
+
+        /* ---- TOP BUTTON BAR ---- */
+        .control-bar {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .control-btn {
+            padding: 10px 15px;
+            background: #2e6cd1;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .control-btn:hover {
+            background: #1d4da0;
+        }
+
+        #fileInput {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- TAB BAR -->
+    <div class="tab-bar">
+        <div class="tab-button active" data-month="july">July</div>
+        <div class="tab-button" data-month="august">August</div>
+        <div class="tab-button" data-month="september">September</div>
+        <div class="tab-button" data-month="october">October</div>
+        <div class="tab-button" data-month="november">November</div>
+        <div class="tab-button" data-month="december">December</div>
+    </div>
+
+    <!-- MONTH CONTAINERS -->
+    <div id="july" class="month-container active"></div>
+    <div id="august" class="month-container"></div>
+    <div id="september" class="month-container"></div>
+    <div id="october" class="month-container"></div>
+    <div id="november" class="month-container"></div>
+    <div id="december" class="month-container"></div>
+
+    <!-- Control Buttons -->
+    <div class="control-bar">
+        <button class="control-btn" onclick="exportJSON()">Download Data</button>
+        <button class="control-btn" onclick="document.getElementById('fileInput').click()">Upload Data</button>
+        <input id="fileInput" type="file" accept=".json" onchange="importJSON(event)">
+    </div>
+
+    <!-- JAVASCRIPT PARTS 2–5 WILL BE INSERTED HERE IN LATER MESSAGES -->
+	
+	<script>
+// ------------------------------
+// PART 2 — CALENDAR GENERATOR
+// Builds the calendars for July–December 2026 (Sunday–Saturday)
+// ------------------------------
+
+const monthOrder = ["july", "august", "september", "october", "november", "december"];
+
+const monthNumbers = {
+    "july": 6,        // JS months: 0=Jan, 6=July
+    "august": 7,
+    "september": 8,
+    "october": 9,
+    "november": 10,
+    "december": 11
+};
+
+
+// ---- Create calendar for each month ----
+function generateAllCalendars() {
+    for (const month of monthOrder) {
+        const container = document.getElementById(month);
+        container.innerHTML = buildCalendarHTML(month, 2026);
+    }
+}
+
+
+// ---- Build a single month calendar HTML ----
+function buildCalendarHTML(monthName, year) {
+
+    let monthNum = monthNumbers[monthName];
+
+    // JS Date: monthNum = 0-based
+    let firstDay = new Date(year, monthNum, 1);
+    let startingWeekday = firstDay.getDay(); // 0 = Sunday
+    let daysInMonth = new Date(year, monthNum + 1, 0).getDate();
+
+    // Start building HTML
+    let html = `
+        <table class="calendar">
+            <tr>
+                <th>Sun</th><th>Mon</th><th>Tue</th>
+                <th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th>
+                <th>Weekly Total</th>
+            </tr>
+    `;
+
+    let currentDay = 1;
+
+    // Create each week row
+    while (currentDay <= daysInMonth) {
+
+        html += "<tr>";
+
+        let weeklyTotalCell = "";
+
+        // For each weekday column
+        for (let weekday = 0; weekday < 7; weekday++) {
+
+            // First row: fill blank until start weekday
+            if (currentDay === 1 && weekday < startingWeekday) {
+                html += "<td></td>";
+            } else if (currentDay > daysInMonth) {
+                html += "<td></td>";
+            } else {
+                html += `
+                    <td>
+                        <div class="day-number">${currentDay}</div>
+                        <div class="bill-list" data-day="${currentDay}" data-month="${monthName}">
+                        </div>
+                        <div style="margin-top:4px; display:flex; gap:4px;">
+    <button onclick="addBill('${monthName}', ${currentDay})" 
+            style="font-size:10px;">Bill</button>
+    <button onclick="addIncome('${monthName}', ${currentDay})" 
+            style="font-size:10px; background:#33aa33; color:white;">Income</button>
+</div>
+                    </td>
+                `;
+                currentDay++;
+            }
+        }
+
+        // Final weekly total cell (computed later)
+        html += `<td class="weekly-total" data-week-total></td>`;
+
+        html += "</tr>";
+    }
+
+    html += "</table>";
+
+    return html;
+}
+
+
+// ---- Activate tabs ----
+document.querySelectorAll(".tab-button").forEach(btn => {
+    btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+
+        let m = btn.dataset.month;
+        document.querySelectorAll(".month-container").forEach(c => c.classList.remove("active"));
+        document.getElementById(m).classList.add("active");
+    });
+});
+
+
+// ---- Initialize calendars ----
+generateAllCalendars();
+
+</script>
+
+<script>
+// ------------------------------
+// PART 3 — BILL MANAGEMENT ENGINE
+// Adds: Add Bill, Edit Bill, Delete Bill (future-only deletions)
+// ------------------------------
+
+// Storage for month-specific bill data
+// Structure: billsData[monthName][day] = [ {name:"", amount:0}, ... ]
+let billsData = {
+    july: {}, august: {}, september: {},
+    october: {}, november: {}, december: {}
+};
+
+
+// -------------- ADD BILL --------------
+function addBill(month, day) {
+    const name = prompt("Bill name:");
+    if (!name) return;
+
+    let amount = prompt("Bill amount:");
+    if (!amount || isNaN(amount)) return;
+
+    amount = parseFloat(amount);
+
+    if (!billsData[month][day]) billsData[month][day] = [];
+    billsData[month][day].push({ name, amount });
+
+    renderBills(month);
+}
+
+
+// -------------- RENDER BILLS FOR A MONTH --------------
+function renderBills(month) {
+    const monthContainer = document.getElementById(month);
+
+    // Get all bill-list containers inside this month
+    const billCells = monthContainer.querySelectorAll(".bill-list");
+
+    billCells.forEach(cell => {
+        const day = cell.dataset.day;
+        cell.innerHTML = "";
+
+        if (billsData[month][day]) {
+            billsData[month][day].forEach((bill, index) => {
+                const div = document.createElement("div");
+                div.className = "bill-item";
+                div.textContent = `${bill.name}: $${bill.amount}`;
+                div.onclick = () =>
+                    editOrDeleteBill(month, day, index);
+                cell.appendChild(div);
+            });
+        }
+    });
+
+    // After rendering bills, update weekly totals
+    updateWeeklyTotals(month);
+}
+
+
+// -------------- EDIT OR DELETE A BILL --------------
+function editOrDeleteBill(month, day, index) {
+    const bill = billsData[month][day][index];
+
+    const choice = prompt(
+        `Editing: ${bill.name} ($${bill.amount})\n\n` +
+        "Type:\n1 = Edit bill\n2 = Delete bill"
+    );
+
+    if (!choice) return;
+
+    // --- EDIT ---
+    if (choice === "1") {
+        const newName = prompt("New bill name:", bill.name);
+        if (!newName) return;
+
+        let newAmount = prompt("New amount:", bill.amount);
+        if (!newAmount || isNaN(newAmount)) return;
+
+        bill.name = newName;
+        bill.amount = parseFloat(newAmount);
+
+        renderBills(month);
+        return;
+    }
+
+    // --- DELETE ---
+    if (choice === "2") {
+        deleteBillFuture(month, day, bill.name);
+        return;
+    }
+}
+
+
+// -------------- DELETE BILL FROM ALL FUTURE MONTHS --------------
+function deleteBillFuture(startMonth, day, billName) {
+    const startIndex = monthOrder.indexOf(startMonth);
+
+    for (let i = startIndex; i < monthOrder.length; i++) {
+        const month = monthOrder[i];
+
+        if (!billsData[month][day]) continue;
+
+        billsData[month][day] =
+            billsData[month][day].filter(b => b.name !== billName);
+
+        // remove empty arrays
+        if (billsData[month][day].length === 0) {
+            delete billsData[month][day];
+        }
+
+        renderBills(month);
+    }
+}
+
+
+// -------------- UPDATE WEEKLY TOTALS --------------
+function updateWeeklyTotals(month) {
+    const monthDiv = document.getElementById(month);
+    const rows = monthDiv.querySelectorAll("table.calendar tr");
+
+    // Skip header row
+    rows.forEach((row, rIndex) => {
+        if (rIndex === 0) return;
+
+        let total = 0;
+        const cells = row.querySelectorAll("td");
+
+        // Cells 0–6 are days
+        for (let c = 0; c < 7; c++) {
+            const billList = cells[c].querySelector(".bill-list");
+            if (!billList) continue;
+
+            const day = billList?.dataset?.day;
+            if (!day) continue;
+
+            const dayBills = billsData[month][day] || [];
+            dayBills.forEach(b => total += b.amount);
+        }
+
+        // Last cell = weekly total
+        const totalCell = row.querySelector("[data-week-total]");
+        if (totalCell) {
+            totalCell.textContent = "$" + total.toFixed(2);
+        }
+    });
+}
+
+</script>
+
+<script>
+// ------------------------------
+// PART 4 — LOAD DEFAULT RECURRING BILLS
+// Repeats your full bill list into each month (July–December)
+// ------------------------------
+
+const defaultBills = [
+    { name: "Mortgage", amount: 2832.57, day: 1 },
+    { name: "Rent", amount: 900, day: 1 },
+    { name: "Brad Truck", amount: 565.33, day: 15 },
+    { name: "Apple Card", amount: 58, day: 30 },
+    { name: "Milestone", amount: 50, day: 23 },
+    { name: "Destiny", amount: 40, day: 15 },
+    { name: "TN Elec", amount: 52.86, day: 26 },
+    { name: "TN Water", amount: 39.99, day: 7 },
+    { name: "TN Internet", amount: 159.58, day: 23 },
+    { name: "TN Gas", amount: 26.12, day: 7 },
+    { name: "Five Lakes", amount: 402.39, day: 12 },
+    { name: "Five Lakes", amount: 402.39, day: 27 },
+    { name: "State Farm - Brad", amount: 176.28, day: 28 },
+    { name: "Ozark", amount: 125, day: 20 },
+    { name: "Playstation", amount: 24.29, day: 10 },
+    { name: "Playstation", amount: 24.29, day: 24 },
+    { name: "NGL", amount: 13, day: 17 },
+    { name: "US Bank", amount: 40, day: 7 },
+    { name: "Vaccum", amount: 105, day: 29 },
+    { name: "ATT", amount: 319, day: 9 },
+    { name: "Ameren", amount: 191, day: 11 },
+    { name: "State Farm - Meggann", amount: 211.93, day: 17 },
+    { name: "Discover", amount: 500, day: 31 },
+    { name: "A-Team", amount: 26.5, day: 15 },
+    { name: "Unbound", amount: 30, day: 15 },
+    { name: "Petersburg Water", amount: 60, day: 15 },
+    { name: "Springfield Clinic", amount: 180, day: 25 },
+    { name: "Netflix", amount: 19.99, day: 27 },
+    { name: "Sirius", amount: 10.99, day: 17 },
+    { name: "Petersburg Internet", amount: 74.95, day: 15 },
+    { name: "IRS", amount: 200, day: 10 },
+    { name: "Apple Music", amount: 16.99, day: 3 },
+    { name: "Amazon Music", amount: 9.99, day: 25 },
+    { name: "Southwest", amount: 150, day: 19 },
+    { name: "Club Car Wash", amount: 30, day: 16 },
+    { name: "JD & Mary", amount: 100, day: 31 },
+    { name: "Meggann Jeep", amount: 850, day: 15 },
+    { name: "TN Mowing", amount: 120, day: 31 },
+    { name: "Damon- Petersburg Mowing", amount: 42, day: 7 },
+    { name: "Damon- Petersburg Mowing", amount: 42, day: 14 },
+    { name: "Damon- Petersburg Mowing", amount: 42, day: 21 },
+    { name: "Damon- Petersburg Mowing", amount: 42, day: 28 }
+];
+
+
+// ---- Insert default bills into each month ----
+function loadDefaultBills() {
+
+    for (const month of monthOrder) {
+        billsData[month] = {}; // reset month data
+
+        defaultBills.forEach(bill => {
+            let day = bill.day;
+
+            // Adjust 31st for months without 31 days
+            const daysInMonth = new Date(2026, monthNumbers[month] + 1, 0).getDate();
+            if (day > daysInMonth) day = daysInMonth;
+
+            if (!billsData[month][day]) {
+                billsData[month][day] = [];
+            }
+
+            billsData[month][day].push({
+                name: bill.name,
+                amount: bill.amount
+            });
+        });
+
+        // After loading defaults, render bills in calendar
+        renderBills(month);
+    }
+}
+
+
+// ---- Run after calendars are created ----
+loadDefaultBills();
+
+</script>
+
+<script>
+// --------------------------------------
+// PART 5 — JSON EXPORT / IMPORT ENGINE
+// Saves and loads the full calendar data
+// --------------------------------------
+
+
+// -------- EXPORT JSON --------
+function exportJSON() {
+    const dataStr = JSON.stringify(billsData, null, 2);
+
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "2026_bill_calendar_data.json";
+    document.body.appendChild(a);
+    a.click();
+
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+
+// -------- IMPORT JSON --------
+function importJSON(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+        try {
+            const importedData = JSON.parse(e.target.result);
+
+            // Validate expected month keys
+            for (const m of monthOrder) {
+                if (!importedData.hasOwnProperty(m)) {
+                    alert("Invalid JSON file format.");
+                    return;
+                }
+            }
+
+            // Load the data
+            billsData = importedData;
+
+            // Re-render all months
+            for (const m of monthOrder) {
+                renderBills(m);
+            }
+
+            alert("Calendar data imported successfully!");
+
+        } catch (err) {
+            alert("Error reading JSON file.");
+        }
+    };
+
+    reader.readAsText(file);
+}
+
+</script>
+
+<!-- ============================
+     NEW INCOME SYSTEM + AUTOSAVE
+     FULL COMBINED DROP-IN BLOCK
+     ============================ -->
+
+<style>
+/* Income items (green) */
+.income-item {
+    background: #e6ffe6;
+    margin: 2px 0;
+    padding: 3px;
+    border-left: 3px solid #33aa33;
+    font-size: 13px;
+    cursor: pointer;
+}
+</style>
+
+<script>
+// ============================
+// DATA STORAGE
+// ============================
+
+// Add this next to billsData
+let incomeData = {
+    july: {}, august: {}, september: {},
+    october: {}, november: {}, december: {}
+};
+
+
+// ============================
+// ADD INCOME BUTTON (used by calendar HTML)
+// ============================
+// Replace your Add Bill button section in buildCalendarHTML with this:
+//
+// <div style="margin-top:4px; display:flex; gap:4px;">
+//     <button onclick="addBill('${monthName}', ${currentDay})" style="font-size:10px;">Bill</button>
+//     <button onclick="addIncome('${monthName}', ${currentDay})" style="font-size:10px; background:#33aa33; color:white;">Income</button>
+// </div>
+
+
+// ============================
+// ADD INCOME
+// ============================
+
+function addIncome(month, day) {
+    const who = prompt("Whose payday? (Brad or Meggann)");
+    if (!who) return;
+
+    let amount = prompt("Income amount:");
+    if (!amount || isNaN(amount)) return;
+
+    amount = parseFloat(amount);
+
+    if (!incomeData[month][day]) incomeData[month][day] = [];
+    incomeData[month][day].push({
+        name: who + " Payday",
+        amount: amount
+    });
+
+    renderBillsAndIncome(month);
+    saveToLocal();
+}
+
+
+// ============================
+// RENDER BILLS + INCOME
+// ============================
+
+function renderBillsAndIncome(month) {
+    const monthContainer = document.getElementById(month);
+    const billCells = monthContainer.querySelectorAll(".bill-list");
+
+    billCells.forEach(cell => {
+        const day = cell.dataset.day;
+        cell.innerHTML = "";
+
+        // Income first (green)
+        if (incomeData[month][day]) {
+            incomeData[month][day].forEach((i, idx) => {
+                const div = document.createElement("div");
+                div.className = "income-item";
+                div.textContent = `${i.name}: $${i.amount}`;
+                div.onclick = () => editOrDeleteIncome(month, day, idx);
+                cell.appendChild(div);
+            });
+        }
+
+        // Bills (blue)
+        if (billsData[month][day]) {
+            billsData[month][day].forEach((bill, index) => {
+                const div = document.createElement("div");
+                div.className = "bill-item";
+                div.textContent = `${bill.name}: $${bill.amount}`;
+                div.onclick = () => editOrDeleteBill(month, day, index);
+                cell.appendChild(div);
+            });
+        }
+    });
+
+    updateWeeklyTotals(month);
+}
+
+
+// ============================
+// EDIT/DELETE INCOME
+// ============================
+
+function editOrDeleteIncome(month, day, index) {
+    const item = incomeData[month][day][index];
+
+    const choice = prompt(
+        `Editing: ${item.name} ($${item.amount})\n\n1 = Edit\n2 = Delete`
+    );
+    if (!choice) return;
+
+    // EDIT
+    if (choice === "1") {
+        const who = prompt("Whose payday?", item.name.replace(" Payday", ""));
+        if (!who) return;
+
+        let amount = prompt("New amount:", item.amount);
+        if (!amount || isNaN(amount)) return;
+
+        item.name = who + " Payday";
+        item.amount = parseFloat(amount);
+
+        renderBillsAndIncome(month);
+        saveToLocal();
+        return;
+    }
+
+    // DELETE
+    if (choice === "2") {
+        incomeData[month][day].splice(index, 1);
+        if (incomeData[month][day].length === 0) delete incomeData[month][day];
+        renderBillsAndIncome(month);
+        saveToLocal();
+        return;
+    }
+}
+
+
+// ============================
+// WEEKLY TOTALS (Bills / Income / Net) VERTICAL
+// ============================
+
+function updateWeeklyTotals(month) {
+    const monthDiv = document.getElementById(month);
+    const rows = monthDiv.querySelectorAll("table.calendar tr");
+
+    rows.forEach((row, rIndex) => {
+        if (rIndex === 0) return;
+
+        let billTotal = 0;
+        let incomeTotal = 0;
+
+        const cells = row.querySelectorAll("td");
+
+        for (let c = 0; c < 7; c++) {
+            const list = cells[c].querySelector(".bill-list");
+            if (!list) continue;
+
+            const day = list.dataset.day;
+            if (!day) continue;
+
+            // Bills
+            (billsData[month][day] || []).forEach(b => billTotal += b.amount);
+
+            // Income
+            (incomeData[month][day] || []).forEach(i => incomeTotal += i.amount);
+        }
+
+        const net = incomeTotal - billTotal;
+
+        const totalCell = row.querySelector("[data-week-total]");
+        if (totalCell) {
+            totalCell.innerHTML =
+                `Bills: $${billTotal.toFixed(2)}<br>` +
+                `Income: $${incomeTotal.toFixed(2)}<br>` +
+                `Net: $${net.toFixed(2)}`;
+        }
+    });
+}
+
+
+// ============================
+// AUTO-SAVE TO LOCAL STORAGE
+// ============================
+
+function saveToLocal() {
+    const obj = {
+        billsData: billsData,
+        incomeData: incomeData
+    };
+    localStorage.setItem("billCalendar2026", JSON.stringify(obj));
+}
+
+function loadFromLocal() {
+    const saved = localStorage.getItem("billCalendar2026");
+    if (!saved) return false;
+
+    const obj = JSON.parse(saved);
+    billsData = obj.billsData;
+    incomeData = obj.incomeData;
+
+    monthOrder.forEach(m => renderBillsAndIncome(m));
+    return true;
+}
+
+
+// ============================
+// INITIAL LOAD LOGIC
+// ============================
+
+// Try loading saved data. If none exists, load defaults.
+if (!loadFromLocal()) {
+    loadDefaultBills();
+    monthOrder.forEach(m => renderBillsAndIncome(m));
+}
+
+</script>
+
+</body>
+</html>
